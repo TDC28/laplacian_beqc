@@ -42,7 +42,7 @@ def prepare_k_register(deltas):
     return instr, instr_inv
 
 
-def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None):
+def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None, vs=None):
     r"""Build the quantum circuit for the block encoding of an N-dimensional Laplacian operator
 
     Args:
@@ -50,6 +50,7 @@ def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None):
         deltas (list[float]): Grid spacings for each dimension.
         bcs (list[str]): Boundary conditions of the laplacian. Each item in the list is either "periodic"
             or "dirichlet". The length of the list determines the number of dimensions.
+        vs (list[float]): The function values at each point. Length should match the total number of grid points.
 
     Returns:
         qiskit.QuantumCircuit: Circuit that block encodes the desired Laplacian operator.
@@ -60,8 +61,9 @@ def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None):
     if bcs is None:
         bcs = ["dirichlet"] * len(nqs)
 
-    if len(list(filter(lambda x: x != "dirichlet" and x != "periodic", bcs))) != 0:
-        raise ValueError("Invalid boundary conditions")
+    assert (
+        len(list(filter(lambda x: x != "dirichlet" and x != "periodic", bcs))) == 0
+    ), "Invalid boundary conditions"
 
     d = len(nqs)
     k = int(np.ceil(np.log2(d)))
@@ -74,6 +76,10 @@ def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None):
 
     if k == 0:
         qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg)
+
+        if vs is not None:
+            all_qubits = [q for reg in j_regs for q in reg]
+            qc.append(StatePreparation(vs), all_qubits)
 
         qc.h(l_reg)
         qc.z(l_reg)
@@ -98,6 +104,10 @@ def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None):
 
     else:
         qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg, k_reg)
+
+        if vs is not None:
+            all_qubits = [q for reg in j_regs for q in reg]
+            qc.append(StatePreparation(vs), all_qubits)
 
         k_prep, k_prep_inv = prepare_k_register(deltas)
         qc.append(k_prep, k_reg)
@@ -177,24 +187,3 @@ def plot_heatmap(nqs, deltas=None, bcs=None, ncs=101, vmax=1.0):
     plt.imshow(unitary, cmap=cmap, vmin=-vmax, vmax=vmax)
     plt.colorbar()
     plt.show()
-
-
-def prepare_empty_block_encoding_circuit(nqs, vs):
-    d = len(nqs)
-    k = int(np.ceil(np.log2(d)))
-
-    l_reg = QuantumRegister(2, "l")
-    dirichlet_reg = QuantumRegister(1, "dir")
-    j_regs = [QuantumRegister(nqs[i], f"j^{{({i})}}") for i in range(d)]
-    k_reg = QuantumRegister(k, "k")
-
-    if k == 0:
-        qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg)
-
-    else:
-        qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg, k_reg)
-
-    for i in range(len(vs)):
-        qc.append(StatePreparation(vs[i]), j_regs[i])
-
-    return qc

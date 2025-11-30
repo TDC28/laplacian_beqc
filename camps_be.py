@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, transpile
-from qiskit.circuit.library import RYGate
+from qiskit.circuit.library import RYGate, StatePreparation
 from qiskit_aer import AerSimulator
 
 from shift_operators import ShiftDown, ShiftUp
@@ -45,7 +45,7 @@ def equal_superposition(k, nq=None):
     return qc
 
 
-def camps_block_encoding(nq, bcs):
+def camps_block_encoding(nq, bcs, vs=None):
     r"""Build the quantum circuit for the block encoding of an N-dimensional Laplacian operator
 
     Args:
@@ -83,6 +83,10 @@ def camps_block_encoding(nq, bcs):
     if k == 0:
         qc = QuantumCircuit(*j_regs, data_reg, l_reg)
 
+        if vs is not None:
+            all_qubits = [q for reg in j_regs for q in reg]
+            qc.append(StatePreparation(vs), all_qubits)
+
         # Defining c-gates
         ry_diag_mc0 = ry_diag.control(2, ctrl_state="00")
         ry_off_mc1 = ry_off.control(2, ctrl_state="01")
@@ -115,6 +119,10 @@ def camps_block_encoding(nq, bcs):
         qc = QuantumCircuit(*j_regs, data_reg, l_reg, k_reg)
         equal_superposition_circuit = equal_superposition(d)
         inv_equal_superposition_circuit = equal_superposition_circuit.inverse()
+
+        if vs is not None:
+            all_qubits = [q for reg in j_regs for q in reg]
+            qc.append(StatePreparation(vs), all_qubits)
 
         qc.h(l_reg)
         qc.append(equal_superposition_circuit.to_instruction(), k_reg)
