@@ -42,14 +42,16 @@ def prepare_k_register(deltas):
     return instr, instr_inv
 
 
-def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None, vs=None):
+def generate_laplacian_block_encoding(
+    nqs, deltas=None, bcs=None, vs=None, save_unitary=True
+):
     r"""Build the quantum circuit for the block encoding of an N-dimensional Laplacian operator
 
     Args:
         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
         deltas (list[float]): Grid spacings for each dimension.
         bcs (list[str]): Boundary conditions of the laplacian. Each item in the list is either "periodic"
-            or "dirichlet". The length of the list determines the number of dimensions.
+            or "dirichlet". Defaults to Dirichlet BCs.
         vs (list[float]): The function values at each point. Length should match the total number of grid points.
 
     Returns:
@@ -100,7 +102,9 @@ def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None, vs=None):
         qc.append(csu, [l_reg[0]] + j_regs[0][:])
 
         qc.h(l_reg)
-        qc.save_unitary()
+
+        if save_unitary:
+            qc.save_unitary()
 
     else:
         qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg, k_reg)
@@ -141,7 +145,9 @@ def generate_laplacian_block_encoding(nqs, deltas=None, bcs=None, vs=None):
 
         qc.h(l_reg)
         qc.append(k_prep_inv, k_reg)
-        qc.save_unitary()
+
+        if save_unitary:
+            qc.save_unitary()
 
     return qc
 

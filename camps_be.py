@@ -45,7 +45,7 @@ def equal_superposition(k, nq=None):
     return qc
 
 
-def camps_block_encoding(nq, bcs, vs=None):
+def camps_block_encoding(nq, bcs, vs=None, save_unitary=True):
     r"""Build the quantum circuit for the block encoding of an N-dimensional Laplacian operator
 
     Args:
@@ -112,7 +112,9 @@ def camps_block_encoding(nq, bcs, vs=None):
         qc.append(sd_mc2, l_reg[:] + j_regs[0][:])
         qc.append(su_mc1, l_reg[:] + j_regs[0][:])
         qc.h(l_reg)
-        qc.save_unitary()
+
+        if save_unitary:
+            qc.save_unitary()
 
     else:
         k_reg = QuantumRegister(k, "k")
@@ -162,6 +164,8 @@ def camps_block_encoding(nq, bcs, vs=None):
 
         qc.h(l_reg)
         qc.append(inv_equal_superposition_circuit.to_instruction(), k_reg)
-        qc.save_unitary()
+
+        if save_unitary:
+            qc.save_unitary()
 
     return qc
