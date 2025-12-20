@@ -9,7 +9,7 @@ from shift_operators import ShiftDown, ShiftUp
 
 def prepare_k_register(deltas):
     r"""Prepares k register into state Σ sqrt(omega_i) |i> where omega_i is inversely proportional to the square
-        of the grid spacing of the i'th dimension. Used when grid spacings differ between each dimension.
+        of the grid spacing of the i'th dimension.
 
     Args:
         deltas (list[float]): The grid spacings for each dimension.
@@ -64,7 +64,15 @@ def generate_laplacian_block_encoding(
         bcs = ["dirichlet"] * len(nqs)
 
     assert (
-        len(list(filter(lambda x: x != "dirichlet" and x != "periodic", bcs))) == 0
+        len(
+            list(
+                filter(
+                    lambda x: x != "dirichlet" and x != "periodic" and x != "neumann",
+                    bcs,
+                )
+            )
+        )
+        == 0
     ), "Invalid boundary conditions"
 
     d = len(nqs)
@@ -72,12 +80,12 @@ def generate_laplacian_block_encoding(
 
     # Defining registers
     l_reg = QuantumRegister(2, "l")
-    dirichlet_reg = QuantumRegister(1, "dir")
+    del_reg = QuantumRegister(1, "del")
     j_regs = [QuantumRegister(nqs[i], f"j^{{({i})}}") for i in range(d)]
     k_reg = QuantumRegister(k, "k")
 
     if k == 0:
-        qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg)
+        qc = QuantumCircuit(*j_regs, del_reg, l_reg)
 
         if vs is not None:
             all_qubits = [q for reg in j_regs for q in reg]
@@ -91,8 +99,19 @@ def generate_laplacian_block_encoding(
             cx0 = XGate().control(nqs[0] + 2, ctrl_state="0" * (nqs[0] + 2))
             cx1 = XGate().control(nqs[0] + 2, ctrl_state="1" * (nqs[0] + 2))
 
-            qc.append(cx0, j_regs[0][:] + l_reg[:] + dirichlet_reg[:])
-            qc.append(cx1, j_regs[0][:] + l_reg[:] + dirichlet_reg[:])
+            qc.append(cx0, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cx1, j_regs[0][:] + l_reg[:] + del_reg[:])
+
+        elif bcs[0] == "neumann":
+            cx0 = XGate().control(nqs[0] + 2, ctrl_state="0" * (nqs[0] + 2))
+            cx1 = XGate().control(nqs[0] + 2, ctrl_state="01" + "0" * nqs[0])
+            cx2 = XGate().control(nqs[0] + 2, ctrl_state="1" * (nqs[0] + 2))
+            cx3 = XGate().control(nqs[0] + 2, ctrl_state="01" + "1" * nqs[0])
+
+            qc.append(cx0, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cx1, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cx2, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cx3, j_regs[0][:] + l_reg[:] + del_reg[:])
 
         # Apply shift operators
         csu = ShiftUp(nqs[0]).control(1)
@@ -107,7 +126,7 @@ def generate_laplacian_block_encoding(
             qc.save_unitary()
 
     else:
-        qc = QuantumCircuit(*j_regs, dirichlet_reg, l_reg, k_reg)
+        qc = QuantumCircuit(*j_regs, del_reg, l_reg, k_reg)
 
         if vs is not None:
             all_qubits = [q for reg in j_regs for q in reg]
@@ -132,8 +151,27 @@ def generate_laplacian_block_encoding(
                     nqs[i] + k + 2, ctrl_state=k_ctrl + "1" * (nqs[i] + 2)
                 )
 
-                qc.append(cx0, j_regs[i][:] + l_reg[:] + k_reg[:] + dirichlet_reg[:])
-                qc.append(cx1, j_regs[i][:] + l_reg[:] + k_reg[:] + dirichlet_reg[:])
+                qc.append(cx0, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cx1, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+
+            if bcs[i] == "neumann":
+                cx0 = XGate().control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "0" * (nqs[i] + 2)
+                )
+                cx1 = XGate().control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "01" + "0" * nqs[i]
+                )
+                cx2 = XGate().control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "1" * (nqs[i] + 2)
+                )
+                cx3 = XGate().control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "01" + "1" * nqs[i]
+                )
+
+                qc.append(cx0, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cx1, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cx2, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cx3, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
 
             # Apply shift operators
             csu = ShiftUp(nqs[i]).control(k + 1, ctrl_state=k_ctrl + "1")

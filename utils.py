@@ -1,3 +1,7 @@
+"""
+Utility functions for data input/output, converting quantum circuits to unitary matrices, and plotting.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 from qiskit import transpile
@@ -15,7 +19,7 @@ def prepare_v_vector(nqs, v, deltas=None):
         deltas (list[float]): Grid spacings for each dimensions.
 
     Returns:
-        array(float): Function values reshaped into a vector.
+        ndarray(float): Function values reshaped into a vector.
     """
     if deltas is None:
         deltas = [2**-nq for nq in nqs]
@@ -38,7 +42,7 @@ def convert_vector_to_tensor(nqs, v_vec):
         v_vec (array(flaot)): Vector of values.
 
     Returns:
-        array(float): Function values reshaped into a tensor.
+        ndarray(float): Function values reshaped into a tensor.
     """
     n_points = 2 ** (np.array(nqs))
 
@@ -53,7 +57,7 @@ def get_circuit_unitary(qc, nqs, subspace=True):
         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
 
     Returns:
-        a numpy.array representation of the block encoded Laplacian matrix.
+        ndarray(float): Representation of the block encoded Laplacian matrix.
     """
     simulator = AerSimulator(method="unitary")
     qc = transpile(qc, simulator)
