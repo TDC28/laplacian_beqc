@@ -60,7 +60,7 @@ def get_circuit_unitary(qc, nqs, subspace=True):
         ndarray(float): Representation of the block encoded Laplacian matrix.
     """
     simulator = AerSimulator(method="unitary")
-    qc = transpile(qc, simulator)
+    qc = transpile(qc, simulator, optimization_level=0)
 
     result = simulator.run(qc).result()
     unitary = result.get_unitary(qc).data.real
