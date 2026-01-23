@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister
+from qiskit.circuit import Gate
 from qiskit.circuit.library import StatePreparation, XGate
 from qiskit_aer import AerSimulator
-from qiskit.circuit import Gate
 
 
 class ShiftUp(Gate):
@@ -42,7 +42,6 @@ class ShiftDown(Gate):
         self.definition = qc
 
 
-
 def prepare_k_register(deltas):
     r"""Prepares k register into state Σ sqrt(omega_i) |i> where omega_i is inversely proportional to the square
         of the grid spacing of the i'th dimension.
@@ -56,24 +55,18 @@ def prepare_k_register(deltas):
     k = int(np.ceil(np.log2(len(deltas))))
     omegas_non_normalized = 4 / np.array(deltas) ** 2
     omegas = omegas_non_normalized / np.sum(omegas_non_normalized)
-    even = np.sum(omegas[::2])
+    print(omegas)
+
+    while len(omegas) != 2**k:
+        omegas = np.append(omegas, 0.0)
 
     qc = QuantumCircuit(k)
-    theta0 = 2 * np.arccos(np.sqrt(even))
-    qc.ry(theta0, 0)
-
-    if k == 2:
-        qc.cry(2 * np.arccos(np.sqrt(omegas[0] / even)), *qc.qubits, ctrl_state=0)
-        qc.cry(2 * np.arccos(np.sqrt(omegas[1] / (1 - even))), *qc.qubits)
-
-    elif k > 2:
-        raise NotImplementedError(
-            f"{len(deltas)}-dimensional Laplacian not implemented."
-        )
-
+    qc.append(StatePreparation(np.sqrt(omegas)), qc.qubits)
     instr = qc.to_instruction(label="prep_k")
     instr_inv = instr.inverse()
     instr_inv.label = "prep_k_inv"
+
+    print(instr_inv)
 
     return instr, instr_inv
 
