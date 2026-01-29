@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister
+from qiskit.circuit import Gate
 from qiskit.circuit.library import StatePreparation, XGate
 from qiskit_aer import AerSimulator
-from qiskit.circuit import Gate
 
 
 class ShiftUp(Gate):
@@ -40,7 +40,6 @@ class ShiftDown(Gate):
                 qc.append(cNx, list(range(i + 1)))
 
         self.definition = qc
-
 
 
 def prepare_k_register(deltas):
@@ -99,17 +98,10 @@ def generate_laplacian_block_encoding(
     if bcs is None:
         bcs = ["dirichlet"] * len(nqs)
 
-    assert (
-        len(
-            list(
-                filter(
-                    lambda x: x != "dirichlet" and x != "periodic" and x != "neumann",
-                    bcs,
-                )
-            )
-        )
-        == 0
-    ), "Invalid boundary conditions"
+    allowed_bcs = {"dirichlet", "periodic", "neumann"}
+    assert set(bcs).issubset(
+        allowed_bcs
+    ), f"Invalid boundary conditions found: {set(bcs) - allowed_bcs}"
 
     d = len(nqs)
     k = int(np.ceil(np.log2(d)))
@@ -121,8 +113,10 @@ def generate_laplacian_block_encoding(
     k_reg = QuantumRegister(k, "k")
 
     if k == 0:
+        # 1-dimensional Laplacian
         qc = QuantumCircuit(*j_regs, del_reg, l_reg)
 
+        # If provided, prepare input function values
         if vs is not None:
             all_qubits = [q for reg in j_regs for q in reg]
             qc.append(StatePreparation(vs), all_qubits)
@@ -130,7 +124,9 @@ def generate_laplacian_block_encoding(
         qc.h(l_reg)
         qc.z(l_reg)
 
-        # Apply dirichlet extra gates if BC is Dirichlet
+        qc.barrier()
+
+        # Apply extra gates for Dirichlet BC
         if bcs[0] == "dirichlet":
             cx0 = XGate().control(nqs[0] + 2, ctrl_state="0" * (nqs[0] + 2))
             cx1 = XGate().control(nqs[0] + 2, ctrl_state="1" * (nqs[0] + 2))
@@ -138,6 +134,7 @@ def generate_laplacian_block_encoding(
             qc.append(cx0, j_regs[0][:] + l_reg[:] + del_reg[:])
             qc.append(cx1, j_regs[0][:] + l_reg[:] + del_reg[:])
 
+        # Apply extra gates for Neumann BC
         elif bcs[0] == "neumann":
             cx0 = XGate().control(nqs[0] + 2, ctrl_state="0" * (nqs[0] + 2))
             cx1 = XGate().control(nqs[0] + 2, ctrl_state="01" + "0" * nqs[0])
@@ -152,33 +149,36 @@ def generate_laplacian_block_encoding(
         # Apply shift operators
         csu = ShiftUp(nqs[0]).control(1)
         csd = ShiftDown(nqs[0]).control(1, ctrl_state=0)
-
         qc.append(csd, [l_reg[1]] + j_regs[0][:])
         qc.append(csu, [l_reg[0]] + j_regs[0][:])
 
+        qc.barrier()
+
         qc.h(l_reg)
 
-        if save_unitary:
-            qc.save_unitary()
-
     else:
+        # N-dimensional Laplacian
         qc = QuantumCircuit(*j_regs, del_reg, l_reg, k_reg)
 
+        # If provided, prepare input function values
         if vs is not None:
             all_qubits = [q for reg in j_regs for q in reg]
             qc.append(StatePreparation(vs), all_qubits)
 
+        # Prepare k register according to grid spacings for each dimensions
         k_prep, k_prep_inv = prepare_k_register(deltas)
         qc.append(k_prep, k_reg)
+
         qc.h(l_reg)
         qc.z(l_reg)
+
         qc.barrier()
 
         for i in range(d):
             # Control bitstring for k register
             k_ctrl = bin(i)[2:].zfill(k)
 
-            # Apply dirichlet extra gates if current BC is Dirichlet
+            # Apply extra gates for Dirichlet BC
             if bcs[i] == "dirichlet":
                 cx0 = XGate().control(
                     nqs[i] + k + 2, ctrl_state=k_ctrl + "0" * (nqs[i] + 2)
@@ -190,6 +190,7 @@ def generate_laplacian_block_encoding(
                 qc.append(cx0, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
                 qc.append(cx1, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
 
+            # Apply extra gates for Neumann BC
             if bcs[i] == "neumann":
                 cx0 = XGate().control(
                     nqs[i] + k + 2, ctrl_state=k_ctrl + "0" * (nqs[i] + 2)
@@ -212,15 +213,15 @@ def generate_laplacian_block_encoding(
             # Apply shift operators
             csu = ShiftUp(nqs[i]).control(k + 1, ctrl_state=k_ctrl + "1")
             csd = ShiftDown(nqs[i]).control(k + 1, ctrl_state=k_ctrl + "0")
-
             qc.append(csd, [l_reg[1]] + k_reg[:] + j_regs[i][:])
             qc.append(csu, [l_reg[0]] + k_reg[:] + j_regs[i][:])
+
             qc.barrier()
 
         qc.h(l_reg)
         qc.append(k_prep_inv, k_reg)
 
-        if save_unitary:
-            qc.save_unitary()
+    if save_unitary:
+        qc.save_unitary()
 
     return qc
