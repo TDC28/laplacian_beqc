@@ -1,6 +1,6 @@
-# Laplacian Block Encodings with Mixed Boundary Conditions
+# Block Encoding Quantum circuits for Laplacian Operators with Mixed Boundary Conditions
 
-As our submission for the Qiskit Advocate Mentorship Program (QAMP) 2025, we present novel block encoding quantum circuits for Laplacian operators. This repository presents our results and compares them with other approaches to block encoding.
+As our submission for the Qiskit Advocate Mentorship Program (QAMP) 2025, we present novel block encoding quantum circuits for Laplacian operators. This repository presents our circuit constructions and compares them with other approaches to block encoding.
 
 ### Overview
 
