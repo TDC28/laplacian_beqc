@@ -4,16 +4,15 @@ Utility functions for data input/output, converting quantum circuits to unitary 
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.sparse as sp
 from qiskit import transpile
 from qiskit_aer import AerSimulator
-import scipy.sparse as sp
 
-from block_encoding import generate_laplacian_block_encoding
 
 # Manually computed Laplacian matrices
 def lap1d_fd(n, h=1.0, bc="dirichlet"):
     """
-    Build 1D second-order finite-difference  (standard 3-point centered (central) finite-difference discretization for the second derivative) 
+    Build 1D second-order finite-difference  (standard 3-point centered (central) finite-difference discretization for the second derivative)
     Laplacian for `n` grid points with spacing `h` and boundary condition `bc`.
 
     Parameters
@@ -60,11 +59,11 @@ def lap1d_fd(n, h=1.0, bc="dirichlet"):
         if n == 1:
             A[0, 0] = 0.0
         else:
-            # Neumann BC 
+            # Neumann BC
             A[0, 0] = -1.0 / (h * h)
-            A[0, 1] =  1.0 / (h * h)
+            A[0, 1] = 1.0 / (h * h)
 
-            A[n - 1, n - 2] =  1.0 / (h * h)
+            A[n - 1, n - 2] = 1.0 / (h * h)
             A[n - 1, n - 1] = -1.0 / (h * h)
 
     else:
@@ -87,7 +86,7 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
     bcs : str or tuple-of-str or None
         Boundary conditions per axis. If None, uses 'dirichlet' on all axes.
     analytic_normalize : bool
-        If True, scale the assembled Laplacian by lambda_max = 4 * sum_i (1/h_i^2). 
+        If True, scale the assembled Laplacian by lambda_max = 4 * sum_i (1/h_i^2).
         Returns (A_scaled, lambda_max). If False, returns A only. (We use the same analytical scaling factor as in the Sturm et al. 2025 paper.)
 
     Returns
@@ -123,14 +122,18 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
         # right identity: product for axes < axis
         kron_right = sp.eye(1, format="csr")
         for j in range(0, axis):
-            kron_right = sp.kron(kron_right, sp.eye(shape[j], format="csr"), format="csr")
+            kron_right = sp.kron(
+                kron_right, sp.eye(shape[j], format="csr"), format="csr"
+            )
 
         term = sp.kron(kron_left, sp.kron(K, kron_right, format="csr"), format="csr")
         total = term if total is None else (total + term)
 
     A = total.tocsr()
 
-    if analytic_normalize:  # again the same scaling factor as in the Sturm et al. 2025 paper
+    if (
+        analytic_normalize
+    ):  # again the same scaling factor as in the Sturm et al. 2025 paper
         # analytic lambda_max = 4 * sum_i (1 / h_i^2)
         lambda_max = 4.0 * sum((1.0 / (h * h)) for h in deltas)
         if lambda_max <= 0:
@@ -139,7 +142,6 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
         return A_scaled.tocsr()
     else:
         return A
-
 
 
 def prepare_v_vector(nqs, v, deltas=None):
@@ -151,34 +153,20 @@ def prepare_v_vector(nqs, v, deltas=None):
         deltas (list[float]): Grid spacings for each dimensions.
 
     Returns:
-        ndarray(float): Function values reshaped into a vector.
+        ndarray(float): Function values reshaped into a vector ready to be used on the block encoding.
     """
     if deltas is None:
         deltas = [2**-nq for nq in nqs]
 
-    points = [np.arange(0, deltas[i] * 2 ** nqs[i], deltas[i]) for i in range(len(nqs))]
+    points = [np.arange(2 ** nqs[i]) * deltas[i] for i in range(len(nqs) - 1, -1, -1)]
 
-    axes = np.meshgrid(*points)
+    axes = np.meshgrid(*points, indexing="ij")
     vs = v(*axes)
     vs_flat = vs.flatten()
+
     norm = np.linalg.norm(vs_flat)
 
     return vs_flat / norm
-
-
-def convert_vector_to_tensor(nqs, v_vec):
-    r"""Reshapes vector of values to its N-dimensional shape.
-
-    Args:
-        nqs (list[int]): Number of qubits for each dimension.
-        v_vec (array(flaot)): Vector of values.
-
-    Returns:
-        ndarray(float): Function values reshaped into a tensor.
-    """
-    n_points = 2 ** (np.array(nqs))
-
-    return np.reshape(v_vec, n_points)
 
 
 def get_circuit_unitary(qc, nqs, subspace=True):
@@ -221,4 +209,5 @@ def plot_heatmap(qc, nqs, deltas=None, bcs=None, ncs=101, vmax=1.0):
 
     plt.imshow(unitary, cmap=cmap, vmin=-vmax, vmax=vmax)
     plt.colorbar()
+    plt.show()
     plt.show()
