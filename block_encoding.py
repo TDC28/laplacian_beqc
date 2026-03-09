@@ -7,8 +7,8 @@ from qiskit_aer import AerSimulator
 
 
 class ShiftUp(Gate):
-    """
-    A multi-qubit gate mapping register in state |x> to |(x + 1) % N>.
+    r"""
+    A multi-qubit gate mapping an n qubit register in state |x> to |(x + 1) % 2^n>.
 
     Args:
         num_qubits (int): Number of qubits in the target register
@@ -32,8 +32,8 @@ class ShiftUp(Gate):
 
 
 class ShiftDown(Gate):
-    """
-    A multi-qubit gate mapping register in state |x> to |(x - 1) % N>.
+    r"""
+    A multi-qubit gate mapping an n qubit register in state |x> to |(x - 1) % 2^n>.
 
     Args:
         num_qubits (int): Number of qubits in the target register
@@ -57,8 +57,8 @@ class ShiftDown(Gate):
 
 
 def prepare_k_register(deltas):
-    r"""Prepares k register into state Σ sqrt(omega_i) |i> where omega_i is inversely proportional to the square
-        of the grid spacing of the i'th dimension.
+    r"""Prepares k register into state sum_i (sqrt(omega_i) |i>) where omega_i is inversely proportional to the square
+        of the grid spacing of the i'th dimension and sum_i (omega_i) = 1.
 
     Args:
         deltas (list[float]): The grid spacings for each dimension.

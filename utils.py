@@ -1,7 +1,3 @@
-"""
-Utility functions for data input/output, converting quantum circuits to unitary matrices, and plotting.
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sp
@@ -9,28 +5,16 @@ from qiskit import transpile
 from qiskit_aer import AerSimulator
 
 
-# Manually computed Laplacian matrices
 def lap1d_fd(n, h=1.0, bc="dirichlet"):
-    """
-    Build 1D second-order finite-difference  (standard 3-point centered (central) finite-difference discretization for the second derivative)
-    Laplacian for `n` grid points with spacing `h` and boundary condition `bc`.
+    r"""Build 1D second-order finite difference Laplacian matrix
 
-    Parameters
-    ----------
-    n : int
-        Number of grid points (nodes) along the 1D domain (>=1).
-    h : float
-        Grid spacing.
-    bc : {'dirichlet','neumann','periodic'}
-        Boundary condition type:
-          - 'dirichlet' : u=0 at boundaries (standard tridiagonal).
-          - 'neumann'   : zero-flux (one-sided treatment at endpoints).
-          - 'periodic'  : wrap-around neighbors (circulant/tridiagonal with corners).
+    Args:
+        n (int): Number of grid points (nodes) along the 1D domain.
+        h (float): Grid spacing.
+        bc (str): Boundary condition type ('dirichlet', 'neumann', or 'periodic')
 
-    Returns
-    -------
-    A : scipy.sparse.csr_matrix, shape (n,n)
-        Sparse 1D Laplacian matrix (second derivative approximation) scaled by 1/h^2.
+    Returns:
+        scipy.sparse.csr_matrix: Sparse 1-dimensional finite difference Laplacian matrix, scaled by 1/h^2.
     """
     if n < 1:
         raise ValueError("n must be >= 1")
@@ -66,7 +50,7 @@ def lap1d_fd(n, h=1.0, bc="dirichlet"):
             A[n - 1, n - 2] = 1.0 / (h * h)
             A[n - 1, n - 1] = -1.0 / (h * h)
 
-    else:
+    elif bc == "dirichlet":
         # Dirichlet: standard tridiagonal (rows kept as is).
         pass
 
@@ -74,37 +58,32 @@ def lap1d_fd(n, h=1.0, bc="dirichlet"):
 
 
 def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
+    r"""Build an N-dimensional finite difference Laplacian matrix.
+
+    Args:
+        shape (tuple[int, ...]): Number of grid points per axis.
+        deltas (tuple[float, ...]): Grid spacings per axis (hx, hy, ...). If None, defaults to 1.0 for each axis.
+        bcs: (tuple[str, ...] | str | None): Boundary conditions per axis. If None, uses 'dirichlet' on all axes.
+        analytic_normalize (bool): If True, scale the assembled Laplacian by 4 * sum_i (1/h_i^2).
+
+    Returns:
+        scipy.sparse.csr_matrix: Sparse N-dimensional finite difference Laplacian matrix.
     """
-    Build separable FD Laplacian and optionally apply analytic normalization ().
-
-    Parameters
-    ----------
-    shape : tuple of ints
-        Number of grid points per axis (Nx, Ny, ...).
-    deltas : tuple of floats or None
-        Grid spacings per axis (hx, hy, ...). If None, uses 1.0 for each axis.
-    bcs : str or tuple-of-str or None
-        Boundary conditions per axis. If None, uses 'dirichlet' on all axes.
-    analytic_normalize : bool
-        If True, scale the assembled Laplacian by lambda_max = 4 * sum_i (1/h_i^2).
-        Returns (A_scaled, lambda_max). If False, returns A only. (We use the same analytical scaling factor as in the Sturm et al. 2025 paper.)
-
-    Returns
-    -------
-    A or A_scaled
-    """
-
     shape = tuple(shape)
     D = len(shape)
+
     if deltas is None:
         deltas = tuple([1.0] * D)
+
     else:
         deltas = tuple(deltas)
 
     if bcs is None:
         bcs = tuple(["dirichlet"] * D)
+
     elif isinstance(bcs, str):
         bcs = tuple([bcs] * D)
+
     else:
         bcs = tuple(bcs)
 
@@ -116,11 +95,13 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
     for axis, K in enumerate(ops_1d):
         # left identity: product of identity matrices for axes > axis
         kron_left = sp.eye(1, format="csr")
+
         for j in range(D - 1, axis, -1):
             kron_left = sp.kron(sp.eye(shape[j], format="csr"), kron_left, format="csr")
 
         # right identity: product for axes < axis
         kron_right = sp.eye(1, format="csr")
+
         for j in range(0, axis):
             kron_right = sp.kron(
                 kron_right, sp.eye(shape[j], format="csr"), format="csr"
@@ -136,9 +117,12 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
     ):  # again the same scaling factor as in the Sturm et al. 2025 paper
         # analytic lambda_max = 4 * sum_i (1 / h_i^2)
         lambda_max = 4.0 * sum((1.0 / (h * h)) for h in deltas)
+
         if lambda_max <= 0:
             raise ValueError("Computed lambda_max <= 0; check grid spacings.")
+
         A_scaled = A / lambda_max
+
         return A_scaled.tocsr()
     else:
         return A
@@ -153,7 +137,7 @@ def prepare_v_vector(nqs, v, deltas=None):
         deltas (list[float]): Grid spacings for each dimensions.
 
     Returns:
-        ndarray(float): Function values reshaped into a vector ready to be used on the block encoding.
+        numpy.ndarray: Function values reshaped into a vector ready to be used on the block encoding.
     """
     if deltas is None:
         deltas = [2**-nq for nq in nqs]
@@ -170,14 +154,14 @@ def prepare_v_vector(nqs, v, deltas=None):
 
 
 def get_circuit_unitary(qc, nqs, subspace=True):
-    r"""Build the matrix representation of a quantum circuit block encoding a Laplacian.
+    r"""Build the matrix representation of a Laplacian block encoding quantum circuit.
 
     Args:
         qc (qiskit.QuantumCircuit): The quantum circuit that block encodes a Laplacian.
         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
 
     Returns:
-        ndarray(float): Representation of the block encoded Laplacian matrix.
+        numpy.ndarray: Representation of the block encoded Laplacian matrix.
     """
     simulator = AerSimulator(method="unitary")
     qc = transpile(qc, simulator, optimization_level=0)
@@ -209,5 +193,4 @@ def plot_heatmap(qc, nqs, deltas=None, bcs=None, ncs=101, vmax=1.0):
 
     plt.imshow(unitary, cmap=cmap, vmin=-vmax, vmax=vmax)
     plt.colorbar()
-    plt.show()
     plt.show()
