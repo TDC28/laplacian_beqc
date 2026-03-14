@@ -1,17 +1,23 @@
 # Block Encoding Quantum circuits for Laplacian Operators with Mixed Boundary Conditions
 
-As our submission for the Qiskit Advocate Mentorship Program (QAMP) 2025, we present novel block encoding quantum circuits for Laplacian operators. This repository presents our circuit constructions and compares them with other approaches to block encoding.
+Introduction
 
 ### Overview
 
-* ***block_encoding.py*** contains the code to build our Laplacian block encoding quantum circuits. We make use of the **Qiskit** ecosystem to build, transpile, and simulate the circuits.
+* ***block_encoding.py*** contains the construction Laplacian block encoding quantum circuits. We make use of the Qiskit ecosystem to build, transpile, and simulate the circuits.
 
 * ***demo.ipynb*** is a Jupyter notebook showcasing all our matrix constructions along with correctness checks. The corresponding block encoding quantum circuit for each matrix are also presented.
 
-* ***compare.ipynb*** is a Jupyter notebook comparing our results with state of the art block encoding methods [[1 - 4]](#references) in total gate count, 2-qubit gate count, and block encoding success probability.
+* ***compare.ipynb*** is a Jupyter notebook comparing our results with state of the art block encoding methods [[1 - 5]](#references) in total gate count, 2-qubit gate count, and block encoding success probability.
 
 * ***utils.py*** contains a few utility functions to help make the code more readable and organized.
 
+
+### Acknowledgements
+
+This work was carried out as part of the Qiskit Advocate Mentorship Program 2025, organized within
+the IBM Qiskit Advocate Program. The authors thank the organizers for facilitating the program and
+supporting collaboration within the Qiskit community.
 
 ### References
 
@@ -23,4 +29,10 @@ As our submission for the Qiskit Advocate Mentorship Program (QAMP) 2025, we pre
 [3] D. Camps, L. Lin, R. V. Beeumen, and C. Yang, “Explicit Quantum Circuits for Block Encodings of Certain Sparse
 Matrices,” (2023), [arXiv:2203.10236 [quant-ph]](https://arxiv.org/abs/2203.10236).
 
-[4] C. Sünderhauf, E. Campbell, and J. Camps, Quantum 8, 1226 (2024).
+[4] C. Sünderhauf, E. Campbell, and J. Camps,  “Block-encoding structured matrices for
+data input in quantum computing,” [Quantum 8, 1226 (2024)](https://doi.org/10.22331/q-2024-01-11-1226). 
+
+[5] Z. Li, X. -M. Zhang, C. Yang and G. Zhang, "Binary Tree Block Encoding of Classical Matrix," [IEEE Transactions on Quantum Engineering 7, 1-18 (2026)](https://doi.org/10.1109/TQE.2025.3624699).
+
+
+
