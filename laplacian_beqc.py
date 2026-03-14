@@ -91,10 +91,8 @@ def prepare_k_register(deltas):
     return instr, instr_inv
 
 
-def generate_laplacian_block_encoding(
-    nqs, deltas=None, bcs=None, vs=None, save_unitary=True
-):
-    r"""Build the quantum circuit for the block encoding of an N-dimensional Laplacian operator
+def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=True):
+    r"""Build a block encoding quantum circuit of an N-dimensional Laplacian operator.
 
     Args:
         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
@@ -130,7 +128,7 @@ def generate_laplacian_block_encoding(
     # Defining registers
     l_reg = QuantumRegister(2, "l")
     del_reg = QuantumRegister(1, "del")
-    j_regs = [QuantumRegister(nqs[i], f"j^{{({i})}}") for i in range(d)]
+    j_regs = [QuantumRegister(nqs[i], f"j^{{({i+1})}}") for i in range(d)]
     k_reg = QuantumRegister(k, "k")
 
     if k == 0:

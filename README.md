@@ -1,5 +1,4 @@
-# Block Encoding Quantum circuits for Laplacian Operators with Mixed Boundary Conditions
-
+# Explicit Block Encodings of Discrete Laplacians with Mixed Boundary Conditions
 Introduction
 
 ### Overview
