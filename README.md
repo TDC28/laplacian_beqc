@@ -3,13 +3,13 @@ Introduction
 
 ### Overview
 
-* ***block_encoding.py*** contains the construction Laplacian block encoding quantum circuits. We make use of the Qiskit ecosystem to build, transpile, and simulate the circuits.
+* ***laplacian_beqc.py*** contains the construction Laplacian block encoding quantum circuits. We make use of the Qiskit ecosystem to build, transpile, and simulate the circuits.
 
 * ***demo.ipynb*** is a Jupyter notebook showcasing all our matrix constructions along with correctness checks. The corresponding block encoding quantum circuit for each matrix are also presented.
 
-* ***compare.ipynb*** is a Jupyter notebook comparing our results with state of the art block encoding methods [[1 - 5]](#references) in total gate count, 2-qubit gate count, and block encoding success probability.
+* ***comparison.ipynb*** is a Jupyter notebook comparing our results with recent block encoding methods [[1 - 5]](#references) in total gate count, 2-qubit gate count, and block encoding success probability.
 
-* ***utils.py*** contains a few utility functions to help make the code more readable and organized.
+* ***utils.py*** contains utility functions used throughout the repository.
 
 
 ### Acknowledgements

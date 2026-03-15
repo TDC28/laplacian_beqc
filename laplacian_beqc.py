@@ -57,7 +57,7 @@ class ShiftDown(Gate):
 
 
 def prepare_k_register(deltas):
-    r"""Prepares k register into state sum_i (sqrt(omega_i) |i>) where omega_i is inversely proportional to the square
+    r"""Prepares the k register into state sum_i (sqrt(omega_i) |i>) where omega_i is inversely proportional to the square
         of the grid spacing of the i'th dimension and sum_i (omega_i) = 1.
 
     Args:
