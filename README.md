@@ -50,7 +50,7 @@ The implementation relies primarily on the **Qiskit** framework.
 Install dependencies with:
 
 ```bash
-pip install qiskit numpy matplotlib qiskit-aer 
+pip install qiskit numpy matplotlib qiskit-aer scipy
 ```
 
 To use the FABLE implementation [[2]](#references):
