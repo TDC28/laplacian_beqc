@@ -128,7 +128,7 @@ def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=Tr
     # Defining registers
     l_reg = QuantumRegister(2, "l")
     del_reg = QuantumRegister(1, "del")
-    j_regs = [QuantumRegister(nqs[i], f"j^{{({i+1})}}") for i in range(d)]
+    j_regs = [QuantumRegister(nqs[i], f"j^{{({i})}}") for i in range(d)]
     k_reg = QuantumRegister(k, "k")
 
     if k == 0:
