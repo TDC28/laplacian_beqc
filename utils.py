@@ -11,7 +11,7 @@ def lap1d_fd(n, h=1.0, bc="dirichlet"):
     Args:
         n (int): Number of grid points (nodes) along the 1D domain.
         h (float): Grid spacing.
-        bc (str): Boundary condition type ('dirichlet', 'neumann', or 'periodic')
+        bc (str | tuple[float, float, float, float]): Boundary condition type ('dirichlet', 'neumann', 'periodic', or tuple of coefficients for Robin BC)
 
     Returns:
         scipy.sparse.csr_matrix: Sparse 1-dimensional finite difference Laplacian matrix, scaled by 1/h^2.
@@ -30,7 +30,18 @@ def lap1d_fd(n, h=1.0, bc="dirichlet"):
         format="lil",
     )
 
-    if bc == "periodic":
+    if isinstance(bc, tuple):
+        alpha0, beta0, alphaL, betaL = bc
+        a0 = alpha0 / beta0
+        aL = alphaL / betaL
+
+        A[0, 0] = (a0 * h - 1) / (h * h)
+        A[0, 1] = 1 / (h * h)
+
+        A[-1, -2] = 1 / (h * h)
+        A[-1, -1] = (aL * h - 1) / (h * h)
+
+    elif bc == "periodic":
         # wrap-around entries
         if n >= 2:
             A[0, n - 1] = off
@@ -63,7 +74,7 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
     Args:
         shape (tuple[int, ...]): Number of grid points per axis.
         deltas (tuple[float, ...]): Grid spacings per axis (hx, hy, ...). If None, defaults to 1.0 for each axis.
-        bcs: (tuple[str, ...] | str | None): Boundary conditions per axis. If None, uses 'dirichlet' on all axes.
+        bcs: (tuple[str | tuple[float, float, float, float]], ...] | str | None): Boundary conditions per axis. If None, uses 'dirichlet' on all axes.
         analytic_normalize (bool): If True, scale the assembled Laplacian by 4 * sum_i (1/h_i^2).
 
     Returns:

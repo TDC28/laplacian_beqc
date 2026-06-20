@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit import Gate
-from qiskit.circuit.library import StatePreparation, XGate
+from qiskit.circuit.library import RYGate, StatePreparation, XGate
 from qiskit_aer import AerSimulator
 
 
@@ -97,8 +97,8 @@ def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=Tr
     Args:
         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
         deltas (list[float]): Grid spacings for each dimension.
-        bcs (list[str]): Boundary conditions of the laplacian. Each item in the list is either "periodic"
-            or "dirichlet". Defaults to Dirichlet BCs.
+        bcs (list[str | tuple[float, float, float, float]]): Boundary conditions of the laplacian. Each item in the list is either "periodic",
+            "dirichlet", "neumann", or a tuple of 4 floats for Robin boundary conditions. Defaults to Dirichlet BCs.
         vs (list[float]): The function values at each point. Length should match the total number of grid points.
 
     Returns:
@@ -114,7 +114,10 @@ def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=Tr
         len(
             list(
                 filter(
-                    lambda x: x != "dirichlet" and x != "periodic" and x != "neumann",
+                    lambda x: x != "dirichlet"
+                    and x != "periodic"
+                    and x != "neumann"
+                    and not isinstance(x, tuple),
                     bcs,
                 )
             )
@@ -141,8 +144,29 @@ def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=Tr
         qc.h(l_reg)
         qc.z(l_reg)
 
-        # Apply dirichlet extra gates if BC is Dirichlet
-        if bcs[0] == "dirichlet":
+        if isinstance(bcs[0], tuple):
+            alpha0, beta0, alphaL, betaL = bcs[0]
+
+            a0 = alpha0 / beta0
+            aL = alphaL / betaL
+
+            assert np.abs(a0 * deltas[0]) <= 1, "Reduce stepsize"
+            assert np.abs(aL * deltas[0]) <= 1, "Reduce stepsize"
+
+            phi0 = 2 * np.arccos(-a0 * deltas[0])
+            phiL = 2 * np.arccos(-aL * deltas[0])
+
+            cx0 = XGate().control(nqs[0] + 2, ctrl_state="0" * (nqs[0] + 2))
+            cx1 = XGate().control(nqs[0] + 2, ctrl_state="1" * (nqs[0] + 2))
+            cry0 = RYGate(phi0).control(nqs[0] + 2, ctrl_state="01" + "0" * nqs[0])
+            cry1 = RYGate(phiL).control(nqs[0] + 2, ctrl_state="01" + "1" * nqs[0])
+
+            qc.append(cx0, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cx1, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cry0, j_regs[0][:] + l_reg[:] + del_reg[:])
+            qc.append(cry1, j_regs[0][:] + l_reg[:] + del_reg[:])
+
+        elif bcs[0] == "dirichlet":
             cx0 = XGate().control(nqs[0] + 2, ctrl_state="0" * (nqs[0] + 2))
             cx1 = XGate().control(nqs[0] + 2, ctrl_state="1" * (nqs[0] + 2))
 
@@ -189,8 +213,36 @@ def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=Tr
             # Control bitstring for k register
             k_ctrl = bin(i)[2:].zfill(k)
 
-            # Apply dirichlet extra gates if current BC is Dirichlet
-            if bcs[i] == "dirichlet":
+            if isinstance(bcs[i], tuple):
+                alpha0, beta0, alphaL, betaL = bcs[i]
+                a0 = alpha0 / beta0
+                aL = alphaL / betaL
+
+                assert np.abs(a0 * deltas[i]) <= 1, "Reduce stepsize"
+                assert np.abs(aL * deltas[i]) <= 1, "Reduce stepsize"
+
+                phi0 = 2 * np.arccos(-a0 * deltas[i])
+                phiL = 2 * np.arccos(-aL * deltas[i])
+
+                cx0 = XGate().control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "0" * (nqs[i] + 2)
+                )
+                cx1 = XGate().control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "1" * (nqs[i] + 2)
+                )
+                cry0 = RYGate(phi0).control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "01" + "0" * nqs[i]
+                )
+                cry1 = RYGate(phiL).control(
+                    nqs[i] + k + 2, ctrl_state=k_ctrl + "01" + "1" * nqs[i]
+                )
+
+                qc.append(cx0, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cx1, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cry0, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+                qc.append(cry1, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
+
+            elif bcs[i] == "dirichlet":
                 cx0 = XGate().control(
                     nqs[i] + k + 2, ctrl_state=k_ctrl + "0" * (nqs[i] + 2)
                 )
@@ -201,7 +253,7 @@ def generate_laplacian_beqc(nqs, deltas=None, bcs=None, vs=None, save_unitary=Tr
                 qc.append(cx0, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
                 qc.append(cx1, j_regs[i][:] + l_reg[:] + k_reg[:] + del_reg[:])
 
-            if bcs[i] == "neumann":
+            elif bcs[i] == "neumann":
                 cx0 = XGate().control(
                     nqs[i] + k + 2, ctrl_state=k_ctrl + "0" * (nqs[i] + 2)
                 )
