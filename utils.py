@@ -1,3 +1,5 @@
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sp
@@ -5,70 +7,117 @@ from qiskit import transpile
 from qiskit_aer import AerSimulator
 
 
-def lap1d_fd(n, h=1.0, bc="dirichlet"):
-    r"""Build 1D second-order finite difference Laplacian matrix
+def lap1d_fd(n, h=1.0, bc="dirichlet", robin_coeffs=None):
+    r"""Build 1D second-order finite difference Laplacian matrix.
 
     Args:
-        n (int): Number of grid points (nodes) along the 1D domain.
-        h (float): Grid spacing.
-        bc (str | tuple[float, float, float, float]): Boundary condition type ('dirichlet', 'neumann', 'periodic', or tuple of coefficients for Robin BC)
+        n (int):
+            Number of grid points.
+        h (float):
+            Grid spacing.
+        bc (str):
+            Boundary condition type:
+            'dirichlet', 'neumann', 'periodic', or 'robin'.
+        robin_coeffs (tuple[float, float, float, float] | None):
+            Robin coefficients (alpha0, beta0, alphaL, betaL)
+            for the left and right boundaries:
+                alpha*u + beta*du/dx = 0
 
     Returns:
-        scipy.sparse.csr_matrix: Sparse 1-dimensional finite difference Laplacian matrix, scaled by 1/h^2.
+        scipy.sparse.csr_matrix:
+            1D finite-difference Laplacian scaled by 1/h^2.
     """
+
     if n < 1:
         raise ValueError("n must be >= 1")
 
     main = -2.0 / (h * h)
     off = 1.0 / (h * h)
 
-    # tridiagonal base (LIL for easy element assignment)
     A = sp.diags(
-        [off * np.ones(n - 1), main * np.ones(n), off * np.ones(n - 1)],
+        [
+            off * np.ones(n - 1),
+            main * np.ones(n),
+            off * np.ones(n - 1),
+        ],
         offsets=[-1, 0, 1],
         shape=(n, n),
         format="lil",
     )
 
-    if isinstance(bc, tuple):
-        alpha0, beta0, alphaL, betaL = bc
-        a0 = alpha0 / beta0
-        aL = alphaL / betaL
-
-        A[0, 0] = (a0 * h - 1) / (h * h)
-        A[0, 1] = 1 / (h * h)
-
-        A[-1, -2] = 1 / (h * h)
-        A[-1, -1] = (aL * h - 1) / (h * h)
+    if bc == "dirichlet":
+        pass
 
     elif bc == "periodic":
-        # wrap-around entries
-        if n >= 2:
-            A[0, n - 1] = off
-            A[n - 1, 0] = off
-        else:
-            # n == 1: Laplacian on single periodic point is zero
+        if n == 1:
             A[0, 0] = 0.0
+        else:
+            A[0, -1] = off
+            A[-1, 0] = off
 
     elif bc == "neumann":
         if n == 1:
             A[0, 0] = 0.0
         else:
-            # Neumann BC
-            A[0, 0] = -1.0 / (h * h)
-            A[0, 1] = 1.0 / (h * h)
+            A[0, 0] = -off
+            A[0, 1] = off
+            A[-1, -2] = off
+            A[-1, -1] = -off
 
-            A[n - 1, n - 2] = 1.0 / (h * h)
-            A[n - 1, n - 1] = -1.0 / (h * h)
+    elif bc == "robin":
+        if robin_coeffs is None:
+            raise ValueError(
+                "robin_coeffs must be provided when bc='robin'."
+            )
 
-    elif bc == "dirichlet":
-        # Dirichlet: standard tridiagonal (rows kept as is).
-        pass
+        if len(robin_coeffs) != 4:
+            raise ValueError(
+                "robin_coeffs must be "
+                "(alpha0, beta0, alphaL, betaL)."
+            )
+
+        alpha0, beta0, alphaL, betaL = robin_coeffs
+
+        if beta0 == 0 or betaL == 0:
+            raise ValueError(
+                "beta values cannot be zero for Robin BC. "
+                "Use Dirichlet BC instead."
+            )
+
+        a0 = alpha0 / beta0
+        aL = alphaL / betaL
+
+        if n == 1:
+            A[0, 0] = (a0 * h - 1.0) / (h * h)
+        else:
+            A[0, 0] = (a0 * h - 1.0) / (h * h)
+            A[0, 1] = off
+
+            A[-1, -2] = off
+            A[-1, -1] = (aL * h - 1.0) / (h * h)
+
+        if abs(a0*h - 1) > 4 or abs(aL*h - 1) > 4:
+            warnings.warn(
+                "Robin coefficients may violate analytic normalization bounds."
+            )
+
+
+    else:
+        raise ValueError(
+            "bc must be 'dirichlet', 'neumann', "
+            "'periodic', or 'robin'."
+        )
 
     return A.tocsr()
 
 
-def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
+def generate_laplacian(
+    shape,
+    deltas=None,
+    bcs=None,
+    analytic_normalize=False,
+    robin_coeffs=None,
+):
     r"""Build an N-dimensional finite difference Laplacian matrix.
 
     Args:
@@ -98,10 +147,30 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
     else:
         bcs = tuple(bcs)
 
-    # Build 1D operators
-    ops_1d = [lap1d_fd(n, h, bc) for (n, h, bc) in zip(shape, deltas, bcs)]
+    # Process Robin coefficients per axis
+    if robin_coeffs is None:
+        robin_coeffs = tuple([None] * D)
 
-    # Build Kronecker-sum: sum_k (I ⊗ ... ⊗ K_k ⊗ ... ⊗ I) # just like in the third reference paper (Sturm et al. 2015)
+    else:
+        robin_coeffs = tuple(robin_coeffs)
+
+    if len(robin_coeffs) != D:
+        raise ValueError(
+            "robin_coeffs must have one entry per dimension."
+        )
+
+    # Build 1D operators
+    ops_1d = [
+    lap1d_fd(n, h, bc, robin)
+    for (n, h, bc, robin) in zip(
+        shape,
+        deltas,
+        bcs,
+        robin_coeffs,
+    )
+]
+
+    # Build Kronecker-sum: sum_k (I ⊗ ... ⊗ K_k ⊗ ... ⊗ I) 
     total = None
     for axis, K in enumerate(ops_1d):
         # left identity: product of identity matrices for axes > axis
@@ -137,6 +206,7 @@ def generate_laplacian(shape, deltas=None, bcs=None, analytic_normalize=False):
         return A_scaled.tocsr()
     else:
         return A
+    
 
 
 def prepare_v_vector(nqs, v, deltas=None):
