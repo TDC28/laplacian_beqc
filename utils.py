@@ -244,11 +244,15 @@ def get_circuit_unitary(qc, nqs, subspace=True):
     Returns:
         numpy.ndarray: Representation of the block encoded Laplacian matrix.
     """
+    print("Function call - get_circuit_unitary")
     simulator = AerSimulator(method="unitary")
-    qc = transpile(qc, simulator, optimization_level=0)
+    print("Simulator loaded")
+    print("Starting transpilation")
+    qc_transpiled = transpile(qc, simulator)   # This line causes a crash when called with StatePreparation
+    print("transpiled")
 
-    result = simulator.run(qc).result()
-    unitary = result.get_unitary(qc).data.real
+    result = simulator.run(qc_transpiled).result()
+    unitary = result.get_unitary(qc_transpiled).data.real
 
     if subspace:
         unitary_subspace = unitary[: 2 ** sum(nqs), : 2 ** sum(nqs)]
