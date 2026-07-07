@@ -5,7 +5,7 @@ import numpy as np
 import scipy.sparse as sp
 from qiskit import transpile
 from qiskit_aer import AerSimulator
-
+from qiskit.quantum_info import Operator
 
 def lap1d_fd(n, h=1.0, bc="dirichlet", robin_coeffs=None):
     r"""Build 1D second-order finite difference Laplacian matrix.
@@ -234,6 +234,29 @@ def prepare_v_vector(nqs, v, deltas=None):
     return vs_flat / norm
 
 
+# def get_circuit_unitary(qc, nqs, subspace=True):
+#     r"""Build the matrix representation of a Laplacian block encoding quantum circuit.
+
+#     Args:
+#         qc (qiskit.QuantumCircuit): The quantum circuit that block encodes a Laplacian.
+#         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
+
+#     Returns:
+#         numpy.ndarray: Representation of the block encoded Laplacian matrix.
+#     """
+#     simulator = AerSimulator(method="unitary")
+#     qc = transpile(qc, simulator, optimization_level=0)
+
+#     result = simulator.run(qc).result()
+#     unitary = result.get_unitary(qc).data.real
+
+#     if subspace:
+#         unitary_subspace = unitary[: 2 ** sum(nqs), : 2 ** sum(nqs)]
+
+#         return unitary_subspace
+
+#     return unitary
+
 def get_circuit_unitary(qc, nqs, subspace=True):
     r"""Build the matrix representation of a Laplacian block encoding quantum circuit.
 
@@ -244,15 +267,14 @@ def get_circuit_unitary(qc, nqs, subspace=True):
     Returns:
         numpy.ndarray: Representation of the block encoded Laplacian matrix.
     """
-    print("Function call - get_circuit_unitary")
-    simulator = AerSimulator(method="unitary")
-    print("Simulator loaded")
-    print("Starting transpilation")
-    qc_transpiled = transpile(qc, simulator)   # This line causes a crash when called with StatePreparation
-    print("transpiled")
+    # Strip Aer-only save instructions before converting the circuit.
+    qc = qc.copy()
+    qc.data = [inst for inst in qc.data if inst.operation.name != "save_unitary"]
 
-    result = simulator.run(qc_transpiled).result()
-    unitary = result.get_unitary(qc_transpiled).data.real
+    # Use the operator path instead of Aer's unitary simulator.
+    # The Aer unitary backend can segfault on circuits containing nested
+    # composite gates or multiplexer-style decompositions.
+    unitary = Operator(transpile(qc, optimization_level=0)).data.real
 
     if subspace:
         unitary_subspace = unitary[: 2 ** sum(nqs), : 2 ** sum(nqs)]
