@@ -234,31 +234,8 @@ def prepare_v_vector(nqs, v, deltas=None):
     return vs_flat / norm
 
 
-# def get_circuit_unitary(qc, nqs, subspace=True):
-#     r"""Build the matrix representation of a Laplacian block encoding quantum circuit.
-
-#     Args:
-#         qc (qiskit.QuantumCircuit): The quantum circuit that block encodes a Laplacian.
-#         nqs (list[int]): Number of qubits per dimensions. Corresponds to 2**nq grid points per dimension.
-
-#     Returns:
-#         numpy.ndarray: Representation of the block encoded Laplacian matrix.
-#     """
-#     simulator = AerSimulator(method="unitary")
-#     qc = transpile(qc, simulator, optimization_level=0)
-
-#     result = simulator.run(qc).result()
-#     unitary = result.get_unitary(qc).data.real
-
-#     if subspace:
-#         unitary_subspace = unitary[: 2 ** sum(nqs), : 2 ** sum(nqs)]
-
-#         return unitary_subspace
-
-#     return unitary
-
 def get_circuit_unitary(qc, nqs, subspace=True):
-    r"""Build the matrix representation of a Laplacian block encoding quantum circuit.
+    r"""Build the matrix representation of a Laplacian block encoding quantum circuit, without using Qiskit Aer.
 
     Args:
         qc (qiskit.QuantumCircuit): The quantum circuit that block encodes a Laplacian.

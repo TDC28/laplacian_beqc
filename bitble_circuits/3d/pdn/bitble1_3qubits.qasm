@@ -1,9 +1,9 @@
-    OPENQASM 3;
-    include "stdgates.inc";
+OPENQASM 3;
+include "stdgates.inc";
 
-    qubit[6] q;
+qubit[6] q;
 
-    ry(1.570796326794897) q[0];
+ry(1.570796326794897) q[0];
 cx q[3], q[0];
 ry(-1.209625898413500) q[0];
 cx q[3], q[0];
